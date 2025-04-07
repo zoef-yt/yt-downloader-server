@@ -1,0 +1,14 @@
+FROM node:18-alpine
+WORKDIR /app
+COPY package.json ./
+
+RUN npm install
+
+COPY . .
+
+ENV PATH="/app/node_modules/.bin:$PATH"
+
+RUN mkdir -p /app/downloads
+EXPOSE 3000
+
+CMD ["npm", "run", "start"]
