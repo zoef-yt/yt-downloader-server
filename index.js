@@ -86,13 +86,17 @@ app.post('/api/download', async (req, res) => {
 
     const subprocess = youtubeDl.exec(url, args);
     subprocess.stdout.on('data', (data) => {
+      console.log('Subprocess output:', data.toString());
+
       const line = data.toString();
       const match = line.match(/\[download\]\s+(\d{1,3}\.\d)%/);
       if (match && clients[id]) {
         const progress = parseFloat(match[1]);
+        console.log('Progress:', progress);
         clients[id].write(`data: ${JSON.stringify({ progress })}\n\n`);
         if (progress >= 100) {
           clients[id].write(`data: ${JSON.stringify({ progress: 100, status: 'processing' })}\n\n`);
+          console.log('Download completed');
         }
       }
     });
