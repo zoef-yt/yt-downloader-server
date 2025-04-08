@@ -27,6 +27,7 @@ let clients = {};
 
 app.get('/api/progress/:id', (req, res) => {
   const id = req.params.id;
+  console.log('Client connected for progress:', id);
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -35,6 +36,7 @@ app.get('/api/progress/:id', (req, res) => {
   clients[id] = res;
 
   req.on('close', () => {
+    console.log('Client disconnected:', id);
     delete clients[id];
   });
 });
@@ -42,7 +44,7 @@ app.get('/api/progress/:id', (req, res) => {
 
 app.post('/api/download', async (req, res) => {
   const { url, type, format, id } = req.body;
-  console.log('Request received to download:', url);
+  console.log('Request received to download:', { url, id });
   if (!url || !type || !format || !id) {
     return res.status(400).json({ error: 'Missing required parameters' });
   }
@@ -81,6 +83,7 @@ app.post('/api/download', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${finalFileName}"`);
     res.setHeader('Content-Type', 'application/octet-stream');
     console.log('Video title:', finalFileName);
+
     const subprocess = youtubeDl.exec(url, args);
     subprocess.stdout.on('data', (data) => {
       const line = data.toString();
