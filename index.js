@@ -56,6 +56,7 @@ app.post('/api/download', async (req, res) => {
     ffmpegLocation: ffmpegPath,
     noPlaylist: true,
     newline: true,
+    cookies: path.join(__dirname, 'cookies.txt'),
   };
 
   if (type === 'audioonly') {
@@ -104,6 +105,15 @@ app.post('/api/download', async (req, res) => {
         stream.on('end', () => fs.unlink(filePath, () => { }));
       }, 500);
     });
+    subprocess.on('error', (err) => {
+      console.error('❌ Subprocess failed to start:', err);
+      if (clients[id]) {
+        clients[id].write(`data: ${JSON.stringify({ error: 'Internal server error during processing' })}\n\n`);
+        clients[id].end();
+        delete clients[id];
+      }
+      res.status(500).json({ error: 'Failed to start download process' });
+    });
   } catch (error) {
     if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
     console.error('❌ Error during download:', error);
@@ -131,7 +141,13 @@ app.post('/api/download', async (req, res) => {
     res.status(500).json({ error: errorMessage });
   }
 });
+process.on('uncaughtException', (err) => {
+  console.error('💥 Uncaught Exception:', err);
+});
 
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('💥 Unhandled Rejection:', reason);
+});
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', time: new Date().toISOString() });
 });
