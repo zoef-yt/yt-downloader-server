@@ -71,6 +71,7 @@ app.post('/api/download', async (req, res) => {
   } else {
     args.format = 'bestvideo[ext=mp4][height<=720]+bestaudio[ext=m4a]/best[ext=mp4]';
   }
+  console.log('args', args);
 
   try {
     const info = await youtubeDl(url, {
