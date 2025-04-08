@@ -57,10 +57,6 @@ app.post('/api/download', async (req, res) => {
     ffmpegLocation: ffmpegPath,
     noPlaylist: true,
     newline: true,
-    cookies: path.join(__dirname, 'cookies.txt'),
-    userAgent:
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    referer: 'https://www.youtube.com/',
   };
 
   if (type === 'audioonly') {
@@ -73,7 +69,13 @@ app.post('/api/download', async (req, res) => {
   }
 
   try {
-    const info = await youtubeDl(url, { dumpSingleJson: true });
+    const info = await youtubeDl(url, {
+      dumpSingleJson: true,
+      cookies: path.join(__dirname, 'cookies.txt'),
+      userAgent:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      referer: 'https://www.youtube.com/',
+    });
     const safeTitle = info.title.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_');
     const finalFileName = `${safeTitle}.${format}`;
     res.setHeader('Content-Disposition', `attachment; filename="${finalFileName}"`);
