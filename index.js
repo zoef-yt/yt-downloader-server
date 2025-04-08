@@ -42,7 +42,7 @@ app.get('/api/progress/:id', (req, res) => {
 
 app.post('/api/download', async (req, res) => {
   const { url, type, format, id } = req.body;
-
+  console.log('Download reached');
   if (!url || !type || !format || !id) {
     return res.status(400).json({ error: 'Missing required parameters' });
   }
@@ -50,7 +50,7 @@ app.post('/api/download', async (req, res) => {
   const fileName = `video-${id}.${format}`;
   const filePath = path.join(downloadsDir, fileName);
   process.env.FFPROBE_PATH = ffprobePath;
-
+  console.log('filename', fileName);
   const args = {
     o: filePath,
     ffmpegLocation: ffmpegPath,
@@ -59,10 +59,6 @@ app.post('/api/download', async (req, res) => {
   };
 
   if (type === 'audioonly') {
-    //TODO for future use, if addin more formats
-    // if (!['mp3', 'm4a', 'wav', 'opus', 'flac'].includes(format)) {
-    //   return res.status(400).json({ error: `Unsupported audio format: ${format}` });
-    // }
     args.extractAudio = true;
     args.audioFormat = format;
   } else if (type === 'videoonly') {
@@ -77,9 +73,7 @@ app.post('/api/download', async (req, res) => {
     const finalFileName = `${safeTitle}.${format}`;
     res.setHeader('Content-Disposition', `attachment; filename="${finalFileName}"`);
     res.setHeader('Content-Type', 'application/octet-stream');
-
     const subprocess = youtubeDl.exec(url, args);
-
     subprocess.stdout.on('data', (data) => {
       const line = data.toString();
       const match = line.match(/\[download\]\s+(\d{1,3}\.\d)%/);
@@ -87,28 +81,59 @@ app.post('/api/download', async (req, res) => {
         const progress = parseFloat(match[1]);
         clients[id].write(`data: ${JSON.stringify({ progress })}\n\n`);
         if (progress >= 100) {
-          clients[id].end();
-          delete clients[id];
+          clients[id].write(`data: ${JSON.stringify({ progress: 100, status: 'processing' })}\n\n`);
         }
       }
     });
-
-    // subprocess.stderr.on('data', () => { }); 
 
     subprocess.on('close', () => {
       if (!fs.existsSync(filePath)) {
         return res.status(500).json({ error: 'Download failed or file not created' });
       }
+      if (clients[id]) {
+        clients[id].write(`data: ${JSON.stringify({ status: 'sending file' })}\n\n`);
+        clients[id].end();
+        delete clients[id];
+      }
+
+      console.log('Download completed');
       setTimeout(() => {
         const stream = fs.createReadStream(filePath);
+        console.log('Stream created');
         stream.pipe(res);
         stream.on('end', () => fs.unlink(filePath, () => { }));
       }, 500);
     });
   } catch (error) {
     if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    res.status(500).json({ error: 'Download failed' });
+    console.error('❌ Error during download:', error);
+    let errorMessage = 'Download failed';
+    if (error && typeof error === 'object') {
+      const stderr = error.stderr || error.message || '';
+      if (typeof stderr === 'string') {
+        if (stderr.includes('Video unavailable')) {
+          errorMessage = 'The video is unavailable or private.';
+        } else if (stderr.includes('age restricted')) {
+          errorMessage = 'This video is age-restricted and cannot be downloaded.';
+        } else if (stderr.includes('Unsupported URL')) {
+          errorMessage = 'The provided URL is not supported.';
+        } else {
+          const matched = stderr
+            .split('\n')
+            .find((line) => line.toLowerCase().includes('error:'));
+          if (matched) {
+            errorMessage = matched.replace(/^ERROR:\s*/i, '');
+          }
+        }
+      }
+    }
+    console.log('🔎 Final errorMessage:', errorMessage);
+    res.status(500).json({ error: errorMessage });
   }
+});
+
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', time: new Date().toISOString() });
 });
 
 app.listen(PORT, () => {

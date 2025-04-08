@@ -1,10 +1,12 @@
 version: '3.9'
 
 services:
-  yt-downloader-backend:
-    build:
-      context: .
-    ports:
-      - '${PUBLIC_PORT}:${PORT}'
-    env_file:
-      - .env
+    yt-downloader-backend:
+        build:
+            context: .
+        ports:
+            - '${PUBLIC_PORT}:${PORT}'
+        env_file:
+            - .env
+        volumes:
+            - ./downloads:/app/downloads
