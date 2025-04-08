@@ -42,16 +42,13 @@ app.get('/api/progress/:id', (req, res) => {
 
 app.post('/api/download', async (req, res) => {
   const { url, type, format, id } = req.body;
-  console.log('Download reached');
+  console.log('Request received to download:', url);
   if (!url || !type || !format || !id) {
     return res.status(400).json({ error: 'Missing required parameters' });
   }
-
   const fileName = `video-${id}.${format}`;
   const filePath = path.join(downloadsDir, fileName);
   process.env.FFPROBE_PATH = ffprobePath;
-  console.log('filename', fileName);
-  console.log('cookies path', path.join(__dirname, 'cookies.txt'));
   const args = {
     o: filePath,
     ffmpegLocation: ffmpegPath,
@@ -70,9 +67,9 @@ app.post('/api/download', async (req, res) => {
   } else {
     args.format = 'bestvideo[ext=mp4][height<=720]+bestaudio[ext=m4a]/best[ext=mp4]';
   }
-  console.log('args', args);
-
+  console.log('Arguments set')
   try {
+    console.log('Starting download');
     const info = await youtubeDl(url, {
       cookies: path.join(__dirname, 'cookies.txt'),
       userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -83,7 +80,7 @@ app.post('/api/download', async (req, res) => {
     const finalFileName = `${safeTitle}.${format}`;
     res.setHeader('Content-Disposition', `attachment; filename="${finalFileName}"`);
     res.setHeader('Content-Type', 'application/octet-stream');
-    console.log('🔧 yt-dlp args:', args);
+    console.log('Video title:', finalFileName);
     const subprocess = youtubeDl.exec(url, args);
     subprocess.stdout.on('data', (data) => {
       const line = data.toString();
@@ -106,7 +103,6 @@ app.post('/api/download', async (req, res) => {
         clients[id].end();
         delete clients[id];
       }
-
       console.log('Download completed');
       setTimeout(() => {
         const stream = fs.createReadStream(filePath);
