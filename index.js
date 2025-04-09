@@ -10,6 +10,7 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:3000';
+process.env.FFPROBE_PATH = ffprobePath;
 
 const downloadsDir = path.resolve(__dirname, 'downloads');
 if (!fs.existsSync(downloadsDir)) fs.mkdirSync(downloadsDir);
@@ -51,7 +52,6 @@ app.post('/api/download', async (req, res) => {
   }
   const fileName = `video-${id}.${format}`;
   const filePath = path.join(downloadsDir, fileName);
-  process.env.FFPROBE_PATH = ffprobePath;
   const args = {
     o: filePath,
     ffmpegLocation: ffmpegPath,
@@ -97,6 +97,9 @@ app.post('/api/download', async (req, res) => {
           clients[id].write(`data: ${JSON.stringify({ progress: 100, status: 'processing' })}\n\n`);
         }
       }
+    });
+    subprocess.stderr.on('data', (data) => {
+      console.error(`yt-dlp stderr: ${data.toString()}`);
     });
 
     subprocess.on('close', () => {
@@ -162,6 +165,35 @@ process.on('unhandledRejection', (reason, promise) => {
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', time: new Date().toISOString() });
 });
+
+app.get('/api/test-stream/:id', (req, res) => {
+  const id = req.params.id;
+  console.log('SSE test stream started for ID:', id);
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  let count = 0;
+  const interval = setInterval(() => {
+    if (count >= 20) {
+      res.write(`data: ${JSON.stringify({ status: 'done' })}\n\n`);
+      res.end();
+      clearInterval(interval);
+      console.log('SSE test stream finished for ID:', id);
+      return;
+    }
+    res.write(`data: ${JSON.stringify({ progress: count * 5 })}\n\n`);
+    count++;
+  }, 300);
+
+  req.on('close', () => {
+    console.log('SSE connection closed by client:', id);
+    clearInterval(interval);
+  });
+});
+
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
