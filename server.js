@@ -16,7 +16,8 @@ app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) {
-        logCorsBlock(null, 'Missing origin');
+        const log = `[${new Date().toISOString()}]: ❌No Origin - Method`;
+        logCorsBlock(null, log);
         return callback(new Error('No origin provided'));
       } else if (allowedOrigins.includes(origin)) {
         console.log('CORS allowed for origin:', origin);
@@ -39,8 +40,8 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use('/api', require('./routes/stream')); 
-app.use('/api', require('./routes/download')); 
+app.use('/api', require('./routes/stream'));
+app.use('/api', require('./routes/download'));
 
 process.on('uncaughtException', (err) => {
   console.error('💥 Uncaught Exception:', err);
