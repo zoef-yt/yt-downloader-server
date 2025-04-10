@@ -38,7 +38,10 @@ const handleDownload = async (req, res) => {
     const finalFileName = `${safeTitle}.${format}`;
 
     res.setHeader('Content-Disposition', `attachment; filename="${finalFileName}"`);
-    res.setHeader('Content-Type', 'application/octet-stream');
+
+    const mime = format === 'mp4' ? 'video/mp4' : format === 'mp3' ? 'audio/mpeg' : 'application/octet-stream';
+    console.log('MIME type:', mime);
+    res.setHeader('Content-Type', mime);
 
     console.log('Video title:', finalFileName);
 
